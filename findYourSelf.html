@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深度 16 型人格测评（毒舌审判版）</title>
+    <style>
+        :root {
+            --primary-color: #0f172a;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --danger-color: #ef4444;
+            --hover-bg: #f8fafc;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+
+        #app {
+            background: var(--card-bg);
+            width: 90%;
+            max-width: 650px;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* 进度条 */
+        .progress-container { margin-bottom: 30px; }
+        .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+        #progress-fill { height: 100%; background: var(--primary-color); width: 0%; transition: width 0.3s ease; }
+        .dim-info { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px; font-weight: 600; color: var(--text-muted); }
+
+        /* 题目区 */
+        .question-card { display: none; animation: slideIn 0.3s ease; }
+        .question-card.active { display: block; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .question-text { font-size: 1.25rem; font-weight: bold; margin-bottom: 25px; line-height: 1.6; }
+
+        /* 选项按钮 */
+        .options-group { display: flex; flex-direction: column; gap: 12px; }
+        .option-btn {
+            padding: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: none;
+            text-align: left;
+            font-size: 1rem;
+            color: var(--text-main);
+            line-height: 1.5;
+        }
+        .option-btn:hover { border-color: var(--primary-color); background: var(--hover-bg); transform: translateX(5px); }
+
+        /* 结果页 */
+        #result-page { display: none; text-align: center; animation: slideIn 0.6s ease; }
+        .result-code { font-size: 3rem; font-weight: 900; letter-spacing: 2px; margin: 10px 0; color: var(--primary-color); }
+        .result-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 15px; }
+        
+        /* 毒舌红字预警 */
+        .is-idiot .result-code { color: var(--danger-color); }
+        .is-idiot .result-title { color: var(--danger-color); }
+        .is-idiot #res-desc { color: #7f1d1d; background: #fef2f2; padding: 20px; border-left: 5px solid var(--danger-color); border-radius: 8px; font-weight: 500; }
+        
+        #res-desc { text-align: justify; line-height: 1.8; margin-bottom: 25px; padding: 15px; background: #f8fafc; border-radius: 8px; }
+
+        /* 深度分析卡片排版 (增量新增) */
+        .deep-analysis-container { text-align: left; margin-bottom: 30px; display: flex; flex-direction: column; gap: 15px; }
+        .analysis-box { padding: 18px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .analysis-box h4 { margin: 0 0 10px 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+        .analysis-box p { margin: 0; line-height: 1.6; font-size: 0.95rem; text-align: justify; }
+
+        .box-root { background: #fff7ed; border-left: 5px solid #f97316; color: #9a3412; }
+        .box-root h4 { color: #c2410c; }
+
+        .box-change { background: #f0fdf4; border-left: 5px solid #22c55e; color: #166534; }
+        .box-change h4 { color: #15803d; }
+
+        .box-fatal { background: #fef2f2; border-left: 5px solid #ef4444; color: #991b1b; }
+        .box-fatal h4 { color: #b91c1c; }
+
+        /* 对立维度双向条 */
+        .dimension-chart { margin: 30px 0; }
+        .vs-row { margin-bottom: 20px; text-align: left; }
+        .vs-labels { display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: bold; margin-bottom: 6px; }
+        .vs-bar-bg { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: #e2e8f0; }
+        .vs-bar-left { height: 100%; background: var(--primary-color); transition: width 1s ease; }
+        .vs-bar-right { height: 100%; background: #94a3b8; transition: width 1s ease; }
+        .is-idiot .vs-bar-left { background: var(--danger-color); }
+
+        .btn-restart { width: 100%; border: none; background: var(--primary-color); color: white; padding: 16px; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.3s; }
+        .btn-restart:hover { background: #334155; }
+        .is-idiot .btn-restart { background: var(--danger-color); }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <!-- UI 进度条 -->
+    <div class="progress-container" id="ui-progress">
+        <div class="dim-info">
+            <span id="step-counter">审判进度：1 / 32</span>
+            <span id="percent-text">0%</span>
+        </div>
+        <div class="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+    </div>
+
+    <!-- 题目容器 -->
+    <div id="question-container"></div>
+
+    <!-- 结果页 -->
+    <div id="result-page">
+        <div class="result-code" id="res-code">????</div>
+        <div class="result-title" id="res-title">正在生成你的精神画像...</div>
+        <div id="res-desc"></div>
+        
+        <!-- 增量：深度分析容器 -->
+        <div class="deep-analysis-container" id="deep-analysis-area">
+            <div class="analysis-box box-root">
+                <h4>🩸 核心病根</h4>
+                <p id="res-root-cause"></p>
+            </div>
+            <div class="analysis-box box-change">
+                <h4>🛠️ 破局自救指南</h4>
+                <p id="res-how-to-change"></p>
+            </div>
+            <div class="analysis-box box-fatal">
+                <h4>💀 不改变的致命下场</h4>
+                <p id="res-fatal-outcome"></p>
+            </div>
+        </div>
+
+        <div class="dimension-chart" id="dimension-viz">
+            <!-- 动态生成对立维度条 -->
+        </div>
+
+        <button class="btn-restart" onclick="location.reload()">重新接受审判</button>
+    </div>
+</div>
+
+<script>
+/**
+ * 16型人格维度配置（正负对立映射）
+ * E(外向) vs I(内向) / S(实感) vs N(直觉) / T(理智) vs F(情感) / J(判断) vs P(感知)
+ */
+const config = {
+    questions:[
+        // --- E vs I (社交与能量来源) ---
+        { text: "1. 经过一周高强度的工作后，周末你更倾向于如何恢复精力？", options:[ { text: "绝对要出去嗨，参加派对或见一堆朋友才觉得活过来", mapping: { E: 10 } }, { text: "约一两个好朋友喝杯咖啡，聊聊天", mapping: { E: 5, I: 2 } }, { text: "在家看看剧打打游戏，尽量少出门", mapping: { I: 5, E: 2 } }, { text: "关掉手机，绝对独处，任何人找我都会觉得烦躁", mapping: { I: 10 } } ] },
+        { text: "2. 在一个全是陌生人的大型聚会上，你通常的状态是？", options:[ { text: "游刃有余，迅速成为人群焦点并主动搭讪", mapping: { E: 10 } }, { text: "会主动寻找看起来友善的人简单交流", mapping: { E: 6 } }, { text: "找个角落待着，只和主动来找我的人说话", mapping: { I: 6 } }, { text: "如同坐牢，满脑子都在算计什么时候能找借口溜走", mapping: { I: 10 } } ] },
+        { text: "3. 遇到开心的事情时，你的第一反应是？", options:[ { text: "立刻发朋友圈，并打电话给所有人分享", mapping: { E: 10 } }, { text: "分享给几个最亲近的人", mapping: { E: 5 } }, { text: "在心里高兴，偶尔向伴侣提一句", mapping: { I: 5 } }, { text: "独自享受这份喜悦，觉得没必要告诉任何人", mapping: { I: 10 } } ] },
+        { text: "4. 你说话的方式通常是？", options:[ { text: "想到什么说什么，边说边理清思路", mapping: { E: 10 } }, { text: "语速较快，喜欢表达自己的见解", mapping: { E: 5 } }, { text: "要在脑子里打好草稿才会开口", mapping: { I: 5 } }, { text: "极度沉默，能打字绝不发语音，能发语音绝不见面", mapping: { I: 10 } } ] },
+        { text: "5. 当你需要思考一个复杂问题时？", options:[ { text: "必须找人头脑风暴，碰撞出火花", mapping: { E: 10 } }, { text: "一边散步一边自言自语", mapping: { E: 5 } }, { text: "在安静的环境中写写画画", mapping: { I: 5 } }, { text: "把自己关在绝对隔音的黑屋子里深度冥想", mapping: { I: 10 } } ] },
+        { text: "6. 你的交友观是怎样的？", options:[ { text: "朋友遍天下，认识的人极多", mapping: { E: 10 } }, { text: "喜欢结交新朋友，圈子比较广", mapping: { E: 5 } }, { text: "只有三五个知心好友，很难接纳新人", mapping: { I: 5 } }, { text: "几乎没有朋友，觉得人类这种生物很麻烦", mapping: { I: 10 } } ] },
+        { text: "7. 在办公室/班级里，你通常扮演？", options:[ { text: "气氛活跃者，随时随地在讲段子", mapping: { E: 10 } }, { text: "合群的人，别人聊天也会积极附和", mapping: { E: 5 } }, { text: "边缘人，默默做自己的事情", mapping: { I: 5 } }, { text: "透明人，恨不得带上隐身斗篷让所有人忽略我", mapping: { I: 10 } } ] },
+        { text: "8. 对于“寂寞”你的感受是？", options:[ { text: "极其恐惧，一刻也不能忍受没人陪", mapping: { E: 10 } }, { text: "偶尔觉得空虚，想找人说话", mapping: { E: 5 } }, { text: "大部分时间很享受，偶尔觉得孤独", mapping: { I: 5 } }, { text: "寂寞？那是我最高级的享受，人类才是噪音", mapping: { I: 10 } } ] },
+
+        // --- S vs N (获取信息：实感与直觉) ---
+        { text: "9. 当你看一部科幻或奇幻电影时，你更关注什么？", options:[ { text: "特效真不真实，逻辑和物理定律有没有硬伤", mapping: { S: 10 } }, { text: "故事情节的发展和人物关系", mapping: { S: 5 } }, { text: "电影背后的隐喻和导演想表达的哲学思想", mapping: { N: 5 } }, { text: "完全沉浸在那个架空的宏大世界观和概念中", mapping: { N: 10 } } ] },
+        { text: "10. 如果要拼装一个复杂的宜家柜子，你会？", options:[ { text: "严格按照说明书，一步一步核对螺丝型号", mapping: { S: 10 } }, { text: "大概看一眼说明书，然后开始动手", mapping: { S: 5 } }, { text: "觉得说明书很烦，凭直觉直接拼", mapping: { N: 5 } }, { text: "看一眼成品图，脑海里推演一遍结构，然后盲拼", mapping: { N: 10 } } ] },
+        { text: "11. 别人向你描述一件事情时，你最讨厌什么？", options:[ { text: "没有时间地点人物，只说一些虚无缥缈的感受", mapping: { S: 10 } }, { text: "夸大其词，不符合实际情况", mapping: { S: 5 } }, { text: "过于陷入琐碎的细节，抓不住重点", mapping: { N: 5 } }, { text: "毫无想象力，只知道陈述干巴巴的流水账", mapping: { N: 10 } } ] },
+        { text: "12. 你对于“未来”的看法是？", options:[ { text: "未来太远，把眼前的每一天过好最重要", mapping: { S: 10 } }, { text: "有一定的规划，但基于现有的现实条件", mapping: { S: 5 } }, { text: "脑子里有无数种关于未来的宏大设想", mapping: { N: 5 } }, { text: "未来比现实更重要，我一直活在未来", mapping: { N: 10 } } ] },
+        { text: "13. 学习新知识时，你更喜欢哪种方式？", options:[ { text: "给我具体的案例、数据和可操作的步骤", mapping: { S: 10 } }, { text: "能解决实际问题的实用技巧", mapping: { S: 5 } }, { text: "先让我搞懂底层的理论框架", mapping: { N: 5 } }, { text: "探讨那些还没有定论的抽象概念和假设", mapping: { N: 10 } } ] },
+        { text: "14. 你的房间布置通常是？", options:[ { text: "非常注重实用性，东西放在触手可及的地方", mapping: { S: 10 } }, { text: "干净整洁，讲究现实的居住体验", mapping: { S: 5 } }, { text: "有些凌乱，但有一种只属于我的“艺术感”", mapping: { N: 5 } }, { text: "完全不在乎现实环境，只要能承载我的灵魂就行", mapping: { N: 10 } } ] },
+        { text: "15. 回忆过去时，你脑海中浮现的是？", options:[ { text: "那天穿了什么衣服，吃了什么具体的食物", mapping: { S: 10 } }, { text: "事情发生的前因后果及客观事实", mapping: { S: 5 } }, { text: "当时的整体氛围和内心的情绪起伏", mapping: { N: 5 } }, { text: "那件事对我人生的象征意义", mapping: { N: 10 } } ] },
+        { text: "16. 你更钦佩哪种人？", options:[ { text: "脚踏实地，白手起家把生意做大的实干家", mapping: { S: 10 } }, { text: "生活经验丰富，能解决各种麻烦的人", mapping: { S: 5 } }, { text: "能洞察时代趋势的预言家", mapping: { N: 5 } }, { text: "提出颠覆性理论，改变人类认知的思想家", mapping: { N: 10 } } ] },
+
+        // --- T vs F (决策方式：理智与情感) ---
+        { text: "17. 当朋友哭着向你诉苦说老板骂了她，你会？", options:[ { text: "分析老板为什么骂她，指出她工作中的漏洞", mapping: { T: 10 } }, { text: "告诉她下一次遇到这种情况该如何应对", mapping: { T: 5 } }, { text: "跟着她一起骂老板，完全站在她这边", mapping: { F: 5 } }, { text: "感受到了她的痛苦，给她一个巨大的拥抱并安慰她", mapping: { F: 10 } } ] },
+        { text: "18. 在团队中做一个艰难决定（比如裁员）时，你的依据是？", options:[ { text: "绝对的数据和绩效考核，末位淘汰，毫无私情", mapping: { T: 10 } }, { text: "公司的整体利益和逻辑合理性", mapping: { T: 5 } }, { text: "考虑每个人的家庭状况和感受，尽量温和", mapping: { F: 5 } }, { text: "觉得太残忍了，宁愿自己降薪也不想伤害任何人", mapping: { F: 10 } } ] },
+        { text: "19. 你认为一部好的法律应该？", options:[ { text: "绝对客观、冰冷、无情，一视同仁", mapping: { T: 10 } }, { text: "逻辑严密，杜绝任何钻空子的可能", mapping: { T: 5 } }, { text: "法外有情，能够考虑特殊情况下的道德困境", mapping: { F: 5 } }, { text: "充满人道主义关怀，最终目的是为了爱与和平", mapping: { F: 10 } } ] },
+        { text: "20. 如果有人对你说“你太冷血了”，你会觉得？", options:[ { text: "这是极大的赞美，说明我足够理智", mapping: { T: 10 } }, { text: "无所谓，我只是陈述事实而已", mapping: { T: 5 } }, { text: "有些受伤，我其实是有关心别人的", mapping: { F: 5 } }, { text: "非常难过，甚至会反思自己是不是真的做错了", mapping: { F: 10 } } ] },
+        { text: "21. 辩论时，你最看重的是？", options:[ { text: "彻底击溃对方的逻辑漏洞，赢得胜利", mapping: { T: 10 } }, { text: "论据的真实性和推导过程的严密性", mapping: { T: 5 } }, { text: "双方能否在交流中达成某种共识", mapping: { F: 5 } }, { text: "绝对不能伤了和气，宁愿输掉也不想吵架", mapping: { F: 10 } } ] },
+        { text: "22. 你评价一个人是否优秀的标准是？", options:[ { text: "他的能力、成就和产出的实际价值", mapping: { T: 10 } }, { text: "他是否聪明、高效、讲道理", mapping: { T: 5 } }, { text: "他的人品、道德底线和对周围人的态度", mapping: { F: 5 } }, { text: "他是否有一颗善良、温柔、包容的心", mapping: { F: 10 } } ] },
+        { text: "23. 遇到网络上的键盘侠喷你，你会？", options:[ { text: "直接抛出铁证和逻辑，把对方怼到哑口无言", mapping: { T: 10 } }, { text: "觉得对方智商太低，冷笑一声拉黑", mapping: { T: 5 } }, { text: "心里会有些憋屈，不知道怎么回击", mapping: { F: 5 } }, { text: "情绪崩溃，陷入内耗，甚至怀疑自己", mapping: { F: 10 } } ] },
+        { text: "24. 你心目中完美的爱情是？", options:[ { text: "强强联手，互相提供社会价值的利益共同体", mapping: { T: 10 } }, { text: "三观一致，遇事能讲道理的战友", mapping: { T: 5 } }, { text: "互相提供情绪价值，永远包容对方", mapping: { F: 5 } }, { text: "毫无保留的灵魂共鸣，哪怕飞蛾扑火也在所不惜", mapping: { F: 10 } } ] },
+
+        // --- J vs P (生活方式：判断与感知) ---
+        { text: "25. 准备一次长途旅行，你的行李打包方式是？", options:[ { text: "提前一周列好Excel清单，精确到带几双袜子", mapping: { J: 10 } }, { text: "提前一两天把必需品整理好", mapping: { J: 5 } }, { text: "出发前一晚随便塞几件衣服，到了再买", mapping: { P: 5 } }, { text: "甚至连去哪都没定好，直接去机场看心情买票", mapping: { P: 10 } } ] },
+        { text: "26. 面对一项截止日期在一个月后的重要任务，你会？", options:[ { text: "第一天就倒推拆解任务，每天按进度执行", mapping: { J: 10 } }, { text: "提前一两周开始做，留出修改时间", mapping: { J: 5 } }, { text: "前二十天都在摸鱼，最后十天开始有紧迫感", mapping: { P: 5 } }, { text: "最后一天晚上创造奇迹，享受肾上腺素飙升的快感", mapping: { P: 10 } } ] },
+        { text: "27. 你对“计划被打乱”的反应是？", options:[ { text: "极度暴躁，觉得整天都被毁了", mapping: { J: 10 } }, { text: "感到不悦，试图努力拉回原计划", mapping: { J: 5 } }, { text: "无所谓，那就顺其自然做点别的", mapping: { P: 5 } }, { text: "太棒了！我最讨厌按部就班，意外就是惊喜", mapping: { P: 10 } } ] },
+        { text: "28. 你的电脑桌面/手机APP排列情况是？", options:[ { text: "严格按功能分文件夹，强迫症级别的整齐", mapping: { J: 10 } }, { text: "大概分了几类，能找到就行", mapping: { J: 5 } }, { text: "堆满了各种临时文件，全靠搜索功能", mapping: { P: 5 } }, { text: "图标铺满屏幕，甚至连红点提示都懒得点掉", mapping: { P: 10 } } ] },
+        { text: "29. 当你在餐馆点菜时？", options:[ { text: "在去餐馆的路上就已经看好菜单决定了", mapping: { J: 10 } }, { text: "迅速看一遍，点自己平时爱吃的", mapping: { J: 5 } }, { text: "纠结很久，想尝鲜又怕踩雷", mapping: { P: 5 } }, { text: "别人点什么我就吃什么，或者抛硬币决定", mapping: { P: 10 } } ] },
+        { text: "30. 你更喜欢哪种工作环境？", options:[ { text: "职责绝对清晰，规章制度完善，赏罚分明", mapping: { J: 10 } }, { text: "有明确的目标和时间线", mapping: { J: 5 } }, { text: "弹性打卡，没有繁文缛节，只看最终结果", mapping: { P: 5 } }, { text: "彻底自由散漫，灵感来了才干活，没人管我", mapping: { P: 10 } } ] },
+        { text: "31. 在生活中，你做决定往往是出于？", options:[ { text: "为了“终结”这个问题，赶紧翻篇", mapping: { J: 10 } }, { text: "为了明确下一步的行动方向", mapping: { J: 5 } }, { text: "为了保留更多的可能性", mapping: { P: 5 } }, { text: "尽量拖延不做决定，因为一旦决定就失去了自由", mapping: { P: 10 } } ] },
+        { text: "32. 对于“条条框框的规则”，你的态度是？", options:[ { text: "必须坚决捍卫，规则是世界运转的基础", mapping: { J: 10 } }, { text: "大部分时间愿意遵守，能提高效率", mapping: { J: 5 } }, { text: "视情况而定，如果规则太蠢我就绕开它", mapping: { P: 5 } }, { text: "天生反骨，看到规则就想打破，规则就是用来限制蠢货的", mapping: { P: 10 } } ] }
+    ],
+
+    // 全新融入深层解析的16型人格映射
+    results:[
+      {
+        code: "INTJ",
+        title: "高傲的幕后黑手",
+        isIdiot: false,
+        desc: "你有着令人毛骨悚然的理智和洞察力。在别人像无头苍蝇一样乱撞时，你已经在脑海中推演了全局。你极度独立、冷酷、追求效率，是个天生的战略家。不过你对人类的愚蠢容忍度极低，这让你看起来像个傲慢的暴君。",
+        deep_analysis: {
+          root_cause: "你的“高冷”本质上是一种防御机制。你把情感和人际交往视为“不可控变量”，因为你害怕失控，所以你干脆剥离情感，用纯粹的逻辑去碾压一切。你之所以傲慢，是因为你试图用智商上的优越感来掩盖你对真实人际连接的无能为力。",
+          how_to_change: "承认“人类的非理性”也是系统运行的客观规律之一。不要把人当成可以随意调试的代码，学会在沟通中加入哪怕只有10%的同理心。把“向下兼容”当成一种顶级战略技能来修炼。",
+          fatal_outcome: "你会在众叛亲离中抱着你那“完美无瑕却无人执行的计划”孤独终老。你会被那些智商不如你、但懂人情世故的平庸之辈在现实中彻底架空，死在自己亲手建造的逻辑孤岛上。"
+        }
+      },
+      {
+        code: "INTP",
+        title: "无可救药的废物键盘侠",
+        isIdiot: true,
+        desc: "你就是个无可救药的白痴！你自以为看透了宇宙真理，觉得自己是个没被发现的天才，但实际上你连个马桶都修不好。你永远停留在脑洞阶段，行动力为负数，房间乱得像猪窝，拖延症晚期。别再用'我在思考'来掩饰你的懒惰了，你只是个只会纸上谈兵、对社会毫无产出的废柴。",
+        deep_analysis: {
+          root_cause: "你是个彻头彻尾的懦夫。你之所以沉溺于脑内的高级理论，是因为只要你不付诸实践，你就永远不会在现实中经历失败。你用所谓的“完美主义”和“看透一切”来逃避现实物理世界的粗糙、困难和挫折。你的智力是你用来逃避责任的遮羞布。",
+          how_to_change: "闭上你的嘴，停止构思你那永远不会发行的旷世巨作。立刻去做极其微小、极其具体的现实任务：倒垃圾、写10行代码、赚100块钱。拥抱“丑陋的半成品”，强迫自己接受“完成大于完美”。",
+          fatal_outcome: "在廉价的出租屋里腐烂发臭。你会眼睁睁看着那些被你鄙视的“庸人”一个个买房买车、改变世界，而你只能在网络论坛里敲打着键盘，成为一个愤世嫉俗、无人理睬、连生存都成问题的中年精神病。"
+        }
+      },
+      {
+        code: "ENTJ",
+        title: "无情的独裁狂魔",
+        isIdiot: false,
+        desc: "你是一台不知疲倦的推土机。你的执行力和领导力拉满，能极其冷血地把挡在面前的障碍全部碾碎。你能成就大事业，但问题是，你根本不把别人当人看，只当成工具。你注定成功，但也注定让许多人在背后对你咬牙切齿。",
+        deep_analysis: {
+          root_cause: "你患有严重的“成就上瘾症”和控制狂暴躁症。你把个人的存在价值完全等同于世俗权力和目标达成，剥离了这些，你会感到极度的恐慌。你把所有人都物化为“ROI（投资回报率）”的载体，缺乏对生命基本的多样性尊重。",
+          how_to_change: "停止微观管理和对效率的变态级榨取。你需要学会“权力下放”和“容错”。去了解你手下那群“工具人”的真实诉求，把威慑力转化为真正的凝聚力，否则你的团队迟早会哗变。",
+          fatal_outcome: "中年突发心梗或者脑溢血。你的商业帝国会因为你的过度高压而崩盘，你的伴侣和孩子会在拿到钱后彻底跟你断绝关系，你将在ICU里发现没有任何一个人真心期盼你活下来。"
+        }
+      },
+      {
+        code: "ENTP",
+        title: "惹人嫌的杠精小丑",
+        isIdiot: true,
+        desc: "闭嘴吧你这个哗众取宠的白痴！你以为你很幽默、很会辩论？在别人眼里你就是个为了杠而杠的神经病。你没有底线，没有责任感，到处挑起争端只为了满足你那可悲的虚荣心。你其实什么都不懂，只是一只会诡辩的鹦鹉，真的没人觉得你很酷，大家都觉得你烦透了。",
+        deep_analysis: {
+          root_cause: "你的内核极度空虚。你没有稳定的价值观，也没有持久的专注力。你之所以到处抬杠、反驳别人，是因为你需要通过“智商上的碾压感”来确认自己的存在。你把惹恼别人当成自己的勋章，掩盖你其实什么实际技能都没有的恐慌。",
+          how_to_change: "学会闭嘴。找一个真正有壁垒的领域，沉下心去钻研3年，而不是每天在10个不同的领域里浅尝辄止地抖机灵。把你的聪明才智用来“建设”一个系统，而不是“解构”和摧毁别人的观点。",
+          fatal_outcome: "成为一个被所有人静音和拉黑的赛博幽灵。你会一事无成，不停地跳槽，所有的才华都被耗尽。到了40岁，你还在酒桌上吹嘘自己的点子有多牛，但身边已经没有一个人愿意借给你哪怕一分钱。"
+        }
+      },
+      {
+        code: "INFJ",
+        title: "伪善的救世主",
+        isIdiot: false,
+        desc: "你总是一副悲天悯人的样子，仿佛背负着人类的苦难。你拥有敏锐的直觉和极强的精神力量，能看穿别人的灵魂。但你的内心极度拧巴，表面温和，内心设下了极高、极苛刻的道德门槛。你太累了，因为你想拯救世界，却常常陷入自我折磨。",
+        deep_analysis: {
+          root_cause: "救世主情结是你极度自恋的变体。你自以为承担了比常人更多的精神重压，实质上是你把这个世界投射成了你需要拯救的巨型孤儿院。你对人际关系有洁癖，表面包容，内心却在给人打分，一旦别人达不到你那神一般纯洁的标准，你就会直接给他们判死刑。",
+          how_to_change: "从神坛上滚下来，承认你也是个有七情六欲、会拉屎放屁的凡人。停止试图治愈那些根本不想被治愈的人。把对全人类的宏大悲悯，转化为去现实里喂一次流浪狗或者帮朋友搬一次家。",
+          fatal_outcome: "精神极度内耗导致的彻底崩溃。你会频繁上演“INFJ式断崖拉黑”，把身边的人全部驱逐出去，最后变成一个满嘴玄学、愤世嫉俗、无人理解的神经质隐士。"
+        }
+      },
+      {
+        code: "INFP",
+        title: "矫情的内耗巨婴",
+        isIdiot: true,
+        desc: "你真是个无可救药的纯种白痴。现实生活一团糟，一遇到挫折就缩回你那可悲的幻想世界里哭泣。你所谓的'同理心'和'文艺'，只是为了掩盖你毫无生存能力的借口。你像个永远长不大的巨婴，只知道索取情绪价值，稍微对你大点声说话你就觉得全世界都在针对你。醒醒吧，地球不是绕着你转的废柴。",
+        deep_analysis: {
+          root_cause: "你患有晚期的“自恋型受害者综合征”。你觉得你的情感比事实更重要，你的痛苦比别人的更有深度。你拒绝适应社会规则，是因为你骨子里觉得自己的灵魂太高贵，不能被世俗污染。这种虚伪的清高掩盖了你本质上的极度软弱和懒惰。",
+          how_to_change: "停止写那些无病呻吟的日记，立刻去干脏活累活。去接受最残酷的现实毒打，把“我感觉不舒服”这句话从你的字典里删掉。搞清楚一个事实：在你有能力养活自己之前，你的情绪一文不值。",
+          fatal_outcome: "重度抑郁，成为家庭的永久吸血鬼。你的才华永远不会变现，你的抱怨会榨干身边每一个试图爱你的人。最终你会孤立无援地烂在床上，至死都在感叹“这个世界配不上我”。"
+        }
+      },
+      {
+        code: "ENFJ",
+        title: "邪教教主 / 虚伪的太阳",
+        isIdiot: true,
+        desc: "你这个伪善的控制狂！你表面上热情洋溢，到处散发光和热，其实你是个极度渴望权力掌控欲的白痴。你通过干涉别人的生活、对别人好来绑架他们，一旦别人不听你的，你就会道德绑架。你那套假惺惺的做派真让人作呕，停止你那自以为是的老好人表演吧！",
+        deep_analysis: {
+          root_cause: "你是一个用“利他主义”包装起来的控制狂。你对别人的好，根本不是无私的，而是一种隐形的债务工具。你需要别人极其依赖你，以此来填补你内在虚无的自我价值。一旦猎物试图脱离你的掌控，你的圣母面具就会撕裂，变成最可怕的情感暴君。",
+          how_to_change: "学会建立清晰的社交边界，收起你不请自来的指导欲。克制住干涉别人人生的冲动，直面你自己内在的空虚。搞清楚：别人的人生烂成一滩泥也是别人的自由，不需要你来当救世主。",
+          fatal_outcome: "面具彻底碎裂，身败名裂。你身边的“信徒”总有一天会看穿你那令人窒息的控制欲和道德绑架，他们会联合起来反噬你、孤立你，把你钉在你亲手打造的道德耻辱柱上。"
+        }
+      },
+      {
+        code: "ENFP",
+        title: "快乐的疯狗",
+        isIdiot: false,
+        desc: "你就像一只得了多动症的金毛，永远充满激情，永远在追逐新的事物。你的创意无限，极具感染力，能瞬间点燃全场。虽然你挖了无数的坑从来不填，情绪也总是在大起大落，但这个无聊的世界确实需要你这样的开心果来增加色彩。",
+        deep_analysis: {
+          root_cause: "极度缺乏长期的延迟满足能力。你对多巴胺的渴望让你无法忍受任何枯燥的深度期。你总是在项目进行到20%的时候就抛弃它去寻找下一个刺激。你的“快乐”和“创意”实际上是一种对现实责任的逃避行为。",
+          how_to_change: "给自己上镣铐。不要再开新坑了，选定一个你觉得最无聊但必须做的项目，咬碎牙齿把它做到100%。学会享受“枯燥的坚持带来的复利”，而不是永远靠新鲜感续命。",
+          fatal_outcome: "一无所获的小丑。30岁之后，你的热情将被视为不靠谱，你的创意将被视为轻浮。你会因为没有任何一项可以拿得出手的核心硬技能，而在职场和生活中沦为可有可无的边缘人。"
+        }
+      },
+      {
+        code: "ISTJ",
+        title: "冥顽不灵的活化石",
+        isIdiot: true,
+        desc: "你这个无趣到极点的机器白痴！你脑子里全是死板的规矩和流程，没有任何变通能力。你就像一张满是灰尘的Excel表格，毫无灵魂。别人只要稍微打破一点常规你就如丧考妣。你的一生平庸、枯燥、刻板，你以为你是在遵守秩序，其实你只是个害怕变化的懦夫罢了。",
+        deep_analysis: {
+          root_cause: "你对“不确定性”有病态的恐惧。你疯狂地抓住过去的经验、规章制度和流程，把它们当成自己的防弹衣。你并不是因为热爱规则而遵守规则，而是因为离开规则你连怎么呼吸都不会。你缺乏创造力和灵活性，是一个只会机械重复的肉体齿轮。",
+          how_to_change: "主动打破常规。每周强迫自己做一件完全不合计划、不按套路出牌的事情。去理解规则背后的“目的”，而不是死守规则的“形式”。学会容忍一定程度的混乱，那是进化的必须条件。",
+          fatal_outcome: "被时代和AI无情碾压。你的所有固化技能都会被轻易替代，当你赖以生存的旧规则崩塌时，你会像个没断奶的孩子一样茫然无措，成为在时代车轮下最先被淘汰的一批牺牲品。"
+        }
+      },
+      {
+        code: "ISFJ",
+        title: "毫无底线的受气包",
+        isIdiot: true,
+        desc: "简直是无可救药的白痴舔狗！你毫无原则地讨好所有人，被别人当成免费的保姆和垃圾桶还搁这儿自我感动。你永远不敢说'不'，背地里却又因为受委屈而疯狂内耗。你可悲的讨好型人格让你失去了作为人的尊严，你不仅是个懦夫，更是一个被所有人看不起的垫脚石。",
+        deep_analysis: {
+          root_cause: "你内心深深地认为自己没有独立存在的价值，必须通过“被别人需要”和“过度付出”来换取可怜的存在感。你极度害怕被讨厌，所以你阉割了自己的攻击性。你以为你的退让能换来爱，但其实在别人眼里，没有底线的好就是廉价的破烂。",
+          how_to_change: "练习使用最具攻击性的词汇：拒绝。如果有人因为你停止付出而生气，那就让他滚出你的生命。把倾注在别人身上的精力收回100%来投资自己，你的善良必须带点锋芒，否则就是软弱的同义词。",
+          fatal_outcome: "耗尽最后一滴血的工具人。你会被渣男渣女、毒老板吸干每一分价值，带着满腔的委屈和各种慢性疾病早死，而在你的葬礼上，那些吸血鬼连一滴眼泪都不会为你流。"
+        }
+      },
+      {
+        code: "ESTJ",
+        title: "掌控狂暴君爹",
+        isIdiot: false,
+        desc: "你是传统和规则的无情捍卫者。你工作极其拼命，效率极高，是维持社会运转的顶梁柱。但你的控制欲太强了，爹味极重，喜欢对所有人的生活指手画脚。你很难听进别人的意见，只要结果好，你可以忽略所有人的感受。",
+        deep_analysis: {
+          root_cause: "极度的权力崇拜和共情能力缺失。你迷信社会阶层和权威，认为只要自己是“对的”且处于高位，就有资格无情碾压任何人。你用“为你好”和“为了效率”来合法化你粗暴、专制的情绪发泄。",
+          how_to_change: "闭上你那喜欢说教的嘴，多问问下属和家人“你觉得呢？”。必须强迫自己认识到，人类是感性动物，哪怕你的逻辑是对的，如果态度像个混蛋，别人照样会让你一败涂地。",
+          fatal_outcome: "陷入孤家寡人的地狱。你会被心怀怨恨的下属联合做局踢出局，你的家庭会破裂。当你老去、失去权力和金钱的那一天，就是你被身边所有人疯狂清算和报复的时刻。"
+        }
+      },
+      {
+        code: "ESFJ",
+        title: "空洞的社交八婆",
+        isIdiot: true,
+        desc: "你这个没有独立思想的空壳白痴！你活着的目的就是为了符合大众的期待，迎合社会的眼光。你满脑子都是家长里短、八卦和虚荣，除了跟风你什么都不会。你害怕被孤立到了变态的地步，为了合群你可以出卖自己的灵魂。你就是个没有内涵、只会复读的世俗傀儡。",
+        deep_analysis: {
+          root_cause: "你的自我意识完全缺失。你就像一面镜子，只能反射社会主流价值观和别人的看法，一旦把你丢进绝对孤独的环境，你会直接精神解体。你的势利、八卦和从众，都是为了掩盖你内部极度匮乏、完全不知道自己是谁的事实。",
+          how_to_change: "切断一切不必要的无效社交。停用社交媒体三个月，停止打探任何人的私生活。强迫自己独自去看画展、看深度的书籍，建立一套不依赖外部评价就能自圆其说的个人价值评价体系。",
+          fatal_outcome: "活成一个虚荣且可悲的塑料假人。当危机来临时，你那些靠八卦和物质维系的“好姐妹/好兄弟”会瞬间作鸟兽散。你的一生都在为别人表演，临死前才会发现自己从未真正活过一天。"
+        }
+      },
+      {
+        code: "ISTP",
+        title: "孤狼与冷血狂徒",
+        isIdiot: false,
+        desc: "你像一头冷血的荒野孤狼，极度注重实际，动手能力神级。你不关心理论，只关心'怎么把这玩意儿拆了或者修好'。你在危机时刻异常冷静，但你在人际关系上冷漠得像块石头，完全不懂得照顾别人的情绪，是个迷人又危险的混蛋。",
+        deep_analysis: {
+          root_cause: "你患有一种叫“情感失语症”的隐形障碍。你把人类的情感波动看作是机器里让人烦躁的Bug。你逃避深度的亲密关系，因为那需要你展示脆弱，而你宁愿拆卸一百台发动机，也不愿意面对一句真诚的“我需要你”。",
+          how_to_change: "不要把所有问题都当成物理机械来修理。强迫自己练习“倾听”和“情感回应”。当你爱的人向你倾诉时，不要给解决方案，只要给一个拥抱和一句“我懂你的感受”。",
+          fatal_outcome: "极端物理意义上的孤独。你由于过早地斩断了所有深层情感联结，最终会在某个冷清的车库里独自老去。哪怕你在技能上是个神，在人类社会里你最终也会活成一个毫无牵挂、死后几天才被发现的幽灵。"
+        }
+      },
+      {
+        code: "ISFP",
+        title: "随波逐流的糊涂虫",
+        isIdiot: true,
+        desc: "你这个胸无大志、软弱无能的白痴！你所谓的'岁月静好'和'艺术细胞'，不过是你逃避现实压力的遮羞布。你永远在退缩，不敢争取任何东西，懒惰、散漫、毫无责任心。你就这样浑浑噩噩地过日子吧，直到有一天你被社会彻底淘汰，连哭都找不到地方。",
+        deep_analysis: {
+          root_cause: "你的底色是极端的懦弱和短视。你厌恶冲突、逃避竞争，给自己套上“佛系”的外衣，其实是因为你根本承受不住任何真实的压力。你沉浸在即时的感官享乐（吃喝玩乐、小爱好）中，像鸵鸟一样把头埋在沙子里，拒绝面对残酷的生存法则。",
+          how_to_change: "把你的“艺术细胞”扔进垃圾桶，立刻去给自己设定一个极度世俗、极度功利的目标（比如存下5万块钱）。强迫自己进入一个有严苛打卡制度和KPI的环境，用外部鞭子抽打你那麻木的神经。",
+          fatal_outcome: "成为最底层、最悲惨的流民。随着年龄增长，“可爱”和“佛系”将不再能保护你。当父母老去无人庇护时，你那点微薄的生存技能根本抵御不了任何风险，一次小病就能让你跌入绝对贫困的深渊。"
+        }
+      },
+      {
+        code: "ESTP",
+        title: "无脑的莽夫狂徒",
+        isIdiot: true,
+        desc: "你脑子里装的全是肌肉吗，白痴？做事从不考虑后果，像个狂躁症患者一样横冲直撞。你以为自己很帅很潇洒，其实在别人眼里你就是个行走的定时炸弹和惹祸精。你这种无脑追求刺激和快感的单细胞生物，迟早有一天会被自己的无知和鲁莽害死，并且绝对没有人会同情你！",
+        deep_analysis: {
+          root_cause: "多巴胺成瘾导致的长期规划能力彻底损坏。你如同一个永远在追求刺激的动物，前额叶皮层仿佛没有发育。你把“冲动”当“勇敢”，把“违反规则”当“有个性”，本质上是你根本没有智力和耐心去推演事件在时间轴上的长远后果。",
+          how_to_change: "做任何重大决定之前，强制自己等待24小时。学习下围棋或去写长篇逻辑报告，做一些能极度折磨你耐心的事情。在你冲出去惹祸之前，先算算你要为这个举动赔多少钱、坐几年牢。",
+          fatal_outcome: "破产、进局子或者死于非命。你那套“赢了会所嫩模”的赌徒心理，只要输一次就是万劫不复。你的鲁莽一定会为你招来无法承受的灾难，你的下半生大概率要在还债和追悔莫及中度过。"
+        }
+      },
+      {
+        code: "ESFP",
+        title: "戏精与派对动物",
+        isIdiot: false,
+        desc: "你是绝对的现充，活在当下的顶级大师。哪里有灯光哪里就有你，你极度热爱生活、美食和享乐，有极强的表现欲。你也许没什么长远的规划，也不爱深沉的思考，但你绝对是享受人生的赢家，因为你比谁都活得真实、热烈。",
+        deep_analysis: {
+          root_cause: "极度的“错失恐惧症（FOMO）”和对内在虚无的掩盖。你之所以要不断地制造喧嚣、参加派对，是因为一旦安静下来，你就会听到内心巨大的空洞声。你用无休止的感官刺激来麻痹自己对未来的焦虑和对死亡的恐惧。",
+          how_to_change: "学会独处，学会面对无聊。每个月强制安排一个“完全静音”的周末，不社交、不喝酒、不发朋友圈。开始学习理财，把用于买奢侈品和派对的钱拿去买医疗保险和养老基金。",
+          fatal_outcome: "老无所依的凄凉小丑。当青春的皮囊衰老，聚光灯移向下一代年轻人时，你将失去所有的资本。你会发现自己耗尽了积蓄、没有能托底的硬核事业，最终变成一个靠借钱度日、令人唏嘘的过气玩乐者。"
+        }
+      }
+    ]
+};
+
+// 状态记录
+let currentStep = 0;
+// 记录正负两极的分数
+let scores = { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 };
+const totalQuestions = config.questions.length;
+
+function init() {
+    const container = document.getElementById('question-container');
+    config.questions.forEach((q, index) => {
+        const div = document.createElement('div');
+        div.className = `question-card ${index === 0 ? 'active' : ''}`;
+        div.id = `q-${index}`;
+        
+        let optionsHtml = q.options.map(opt => `
+            <button class="option-btn" onclick="handleSelect(${JSON.stringify(opt.mapping).replace(/"/g, '&quot;')})">
+                ${opt.text}
+            </button>
+        `).join('');
+
+        div.innerHTML = `
+            <div class="question-text">${q.text}</div>
+            <div class="options-group">${optionsHtml}</div>
+        `;
+        container.appendChild(div);
+    });
+    updateProgress();
+}
+
+function handleSelect(mapping) {
+    // 累加对应维度分值
+    for (let dim in mapping) {
+        scores[dim] += mapping[dim];
+    }
+
+    // 切换题卡
+    document.getElementById(`q-${currentStep}`).classList.remove('active');
+    currentStep++;
+
+    if (currentStep < totalQuestions) {
+        document.getElementById(`q-${currentStep}`).classList.add('active');
+        updateProgress();
+    } else {
+        calculateAndShowResult();
+    }
+}
+
+function updateProgress() {
+    const percent = Math.round((currentStep / totalQuestions) * 100);
+    document.getElementById('progress-fill').style.width = percent + '%';
+    document.getElementById('percent-text').innerText = percent + '%';
+    document.getElementById('step-counter').innerText = `审判进度：${currentStep + 1} / ${totalQuestions}`;
+}
+
+function calculateAndShowResult() {
+    document.getElementById('ui-progress').classList.add('hidden');
+    document.getElementById('question-container').classList.add('hidden');
+    const resPage = document.getElementById('result-page');
+    resPage.style.display = 'block';
+
+    // 1. 判断最终的4个字母
+    const typeCode = 
+        (scores.E >= scores.I ? 'E' : 'I') +
+        (scores.S >= scores.N ? 'S' : 'N') +
+        (scores.T >= scores.F ? 'T' : 'F') +
+        (scores.J >= scores.P ? 'J' : 'P');
+
+    // 2. 匹配文案
+    const resultInfo = config.results.find(r => r.code === typeCode) || config.results[0];
+    
+    // 处理毒舌UI状态
+    if (resultInfo.isIdiot) {
+        resPage.classList.add('is-idiot');
+    }
+
+    // 渲染基础信息
+    document.getElementById('res-code').innerText = resultInfo.code;
+    document.getElementById('res-title').innerText = resultInfo.title;
+    document.getElementById('res-desc').innerText = resultInfo.desc;
+
+    // 渲染增量深度分析
+    if (resultInfo.deep_analysis) {
+        document.getElementById('res-root-cause').innerText = resultInfo.deep_analysis.root_cause;
+        document.getElementById('res-how-to-change').innerText = resultInfo.deep_analysis.how_to_change;
+        document.getElementById('res-fatal-outcome').innerText = resultInfo.deep_analysis.fatal_outcome;
+    } else {
+        document.getElementById('deep-analysis-area').style.display = 'none';
+    }
+
+    // 3. 渲染对立维度横条可视化
+    renderVersusBar('能量走向', 'E (外向社交)', scores.E, 'I (内向独处)', scores.I);
+    renderVersusBar('信息收集', 'S (关注现实)', scores.S, 'N (发散直觉)', scores.N);
+    renderVersusBar('决策方式', 'T (冷酷逻辑)', scores.T, 'F (感性共情)', scores.F);
+    renderVersusBar('生活方式', 'J (严谨计划)', scores.J, 'P (随性自由)', scores.P);
+}
+
+function renderVersusBar(title, leftLabel, leftScore, rightLabel, rightScore) {
+    const total = leftScore + rightScore;
+    const leftPercent = total === 0 ? 50 : Math.round((leftScore / total) * 100);
+    const rightPercent = 100 - leftPercent;
+
+    const vizContainer = document.getElementById('dimension-viz');
+    const row = document.createElement('div');
+    row.className = 'vs-row';
+    
+    row.innerHTML = `
+        <div class="vs-labels">
+            <span>${leftLabel} ${leftPercent}%</span>
+            <span style="color:#64748b;">${title}</span>
+            <span>${rightPercent}% ${rightLabel}</span>
+        </div>
+        <div class="vs-bar-bg">
+            <div class="vs-bar-left" style="width: 0%"></div>
+            <div class="vs-bar-right" style="width: 100%"></div>
+        </div>
+    `;
+    vizContainer.appendChild(row);
+
+    // 动画延迟
+    setTimeout(() => {
+        row.querySelector('.vs-bar-left').style.width = leftPercent + '%';
+        row.querySelector('.vs-bar-right').style.width = rightPercent + '%';
+    }, 100);
+}
+
+// 启动测试
+init();
+</script>
+
+</body>
+</html>
