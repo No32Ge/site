@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CELLULAR BLOOD & SEMEN MICROCOSM</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: radial-gradient(circle, #1a0004 0%, #050001 100%); /* 深邃暗红组织液背景 */
+            cursor: none; /* 隐去鼠标 */
+        }
+
+        /* 启动入口：搏动的生物核囊 */
+        #entry-screen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: #050001;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 1.5s ease-out;
+        }
+
+        #entry-btn {
+            background: radial-gradient(circle, #5a0108 0%, #0e0002 85%);
+            border: 2px solid #a30010;
+            border-radius: 50%;
+            width: 160px;
+            height: 160px;
+            color: #faf6e8; /* 精液浊白 */
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 16px;
+            letter-spacing: 5px;
+            cursor: pointer;
+            transition: all 0.5s ease;
+            outline: none;
+            text-transform: uppercase;
+            box-shadow: 0 0 45px rgba(163, 0, 16, 0.7), inset 0 0 25px rgba(0,0,0,0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: core-beat 1.3s infinite cubic-bezier(0.215, 0.610, 0.355, 1);
+        }
+
+        #entry-btn:hover {
+            color: #ff3344;
+            border-color: #ff3344;
+            box-shadow: 0 0 60px rgba(255, 51, 68, 0.9), inset 0 0 15px rgba(163, 0, 16, 0.5);
+        }
+
+        @keyframes core-beat {
+            0% { transform: scale(1); }
+            30% { transform: scale(1.1); }
+            42% { transform: scale(1.04); }
+            55% { transform: scale(1.14); }
+            100% { transform: scale(1); }
+        }
+
+        /* 显微流体舞台 */
+        #visceral-stage {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 5;
+        }
+
+        /* 前景歌词容器 */
+        #lyric-incubator {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            pointer-events: none;
+            animation: slow-peristalsis 6s infinite ease-in-out;
+        }
+
+        @keyframes slow-peristalsis {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.02) rotate(0.5deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        /* 歌词：100%矢量清晰，双重防扰阴影 */
+        #active-lyric {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-size: 4.5vw;
+            font-weight: 900;
+            text-align: center;
+            max-width: 80%;
+            line-height: 1.5;
+            color: #ffffff; /* 极致白 */
+            letter-spacing: 6px;
+            text-shadow: 
+                -2px -2px 0 #150002,  
+                 2px -2px 0 #150002,
+                -2px  2px 0 #150002,
+                 2px  2px 0 #150002,
+                0px 0px 25px rgba(200, 0, 15, 0.85), /* 充血红晕 */
+                0px 0px 50px rgba(0, 0, 0, 1.0);       /* 绝对深邃黑影 */
+            opacity: 0;
+            transition: opacity 0.35s ease-out;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 启动入口 -->
+    <div id="entry-screen">
+        <button id="entry-btn">ENTRY</button>
+    </div>
+
+    <!-- 显微镜 Canvas -->
+    <canvas id="visceral-stage"></canvas>
+
+    <!-- 歌词容器 -->
+    <div id="lyric-incubator">
+        <div id="active-lyric"></div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 配置区：请在下方双引号中填入您的音乐文件链接
+        // ==========================================
+        const AUDIO_URL = ""; 
+
+        // ============== 歌词时间轴 ==============
+       const lyricsJson = [
+    {
+        "time": 0,
+        "text": ""
+    },
+    {
+        "time": 3.05,
+        "text": "刀面"
+    },
+    {
+        "time": 4.06,
+        "text": "刀片"
+    },
+    {
+        "time": 4.95,
+        "text": "当面制造一个交界"
+    },
+    {
+        "time": 7.73,
+        "text": "到底谁会超线？"
+    },
+    {
+        "time": 9.69,
+        "text": "当面，刀片制造一个交线"
+    },
+    {
+        "time": 13.07,
+        "text": "拒绝你的高见"
+    },
+    {
+        "time": 15.25,
+        "text": "当面，刀片制造一个边界"
+    },
+    {
+        "time": 18.73,
+        "text": "到底谁会的踩线？"
+    },
+    {
+        "time": 21.06,
+        "text": "当面，刀片留下一个交线"
+    },
+    {
+        "time": 24.62,
+        "text": "到底谁会踩线"
+    },
+    {
+        "time": 26.43,
+        "text": "到底谁会？"
+    },
+    {
+        "time": 27.5,
+        "text": "秀秀下限？"
+    },
+    {
+        "time": 28.46,
+        "text": "到底谁会？"
+    },
+    {
+        "time": 29.56,
+        "text": "秀秀下限？"
+    },
+    {
+        "time": 30.55,
+        "text": "秀秀下限，爷我从不当面抱怨"
+    },
+    {
+        "time": 33.27,
+        "text": "每当事情出现"
+    },
+    {
+        "time": 34.27,
+        "text": "我会站在后面，秀出刀面"
+    },
+    {
+        "time": 36.96,
+        "text": "如果厨房冒烟"
+    },
+    {
+        "time": 38.49,
+        "text": "检查房间是否漏电"
+    },
+    {
+        "time": 40.32,
+        "text": "别再心心念念，假象浮现"
+    },
+    {
+        "time": 42.63,
+        "text": "脉搏总会消失不见"
+    },
+    {
+        "time": 44.52,
+        "text": "想要当面对线？"
+    },
+    {
+        "time": 46.31,
+        "text": "可我稳定情绪需要来点药片"
+    },
+    {
+        "time": 49.36,
+        "text": "世界太吵，尖叫没人能够听见"
+    },
+    {
+        "time": 52.74,
+        "text": "使用笔电，描绘一些血腥画面"
+    },
+    {
+        "time": 55.83,
+        "text": "WTF在脑海出现，OMG"
+    },
+    {
+        "time": 58.35,
+        "text": "that bitch? 黑夜才是我的初恋"
+    },
+    {
+        "time": 61.01,
+        "text": "像是一场仪式，教徒出列"
+    },
+    {
+        "time": 63.24,
+        "text": "献出她的初夜"
+    },
+    {
+        "time": 65.19,
+        "text": "留下一些钞票，完事回家输液"
+    },
+    {
+        "time": 67.6,
+        "text": "那些小子在外狩猎，感染艾滋梅毒"
+    },
+    {
+        "time": 70.84,
+        "text": "书面报告病症出现"
+    },
+    {
+        "time": 72.91,
+        "text": "曾经泡在夜店，如今死在医院"
+    },
+    {
+        "time": 75.71,
+        "text": "道歉？家属不想亲自出面"
+    },
+    {
+        "time": 78.03,
+        "text": "界限划分不清，亲自鉴定结果才够精确"
+    },
+    {
+        "time": 81.74,
+        "text": "幻想进入高端场所？任意一家妓院"
+    },
+    {
+        "time": 85.04,
+        "text": "当面，掏出刀剑"
+    },
+    {
+        "time": 86.82,
+        "text": "没啥主见，停止高见"
+    },
+    {
+        "time": 88.93,
+        "text": "否则会吃刀片"
+    },
+    {
+        "time": 90.72,
+        "text": "从不祈祷回到过去，会有什么改变"
+    },
+    {
+        "time": 93.97,
+        "text": "投资棍棒道具？平台返现？剧情在线？"
+    },
+    {
+        "time": 97.51,
+        "text": "还需提前充电"
+    },
+    {
+        "time": 98.95,
+        "text": "大脑缺氧，理性到达上限"
+    },
+    {
+        "time": 101.1,
+        "text": "对她放电，从不无私奉献"
+    },
+    {
+        "time": 103.6,
+        "text": "一语道破“关键部位希望没有缺陷”"
+    },
+    {
+        "time": 106.82,
+        "text": "如同意面，人际关系脆弱像是细线"
+    },
+    {
+        "time": 111.04,
+        "text": "见到太多本质改变，如今不想浪费时间祭奠"
+    },
+    {
+        "time": 116.06,
+        "text": "拾起过去碎片，祈祷誓言兑现"
+    },
+    {
+        "time": 120.68,
+        "text": "谎言太多，令人厌倦"
+    },
+    {
+        "time": 123.03,
+        "text": "承诺太久，无人兑现"
+    },
+    {
+        "time": 124.92,
+        "text": "不学牛郎织女，知己只需床头相见"
+    },
+    {
+        "time": 128.03,
+        "text": "不搞潮流物品，专注情趣商店"
+    },
+    {
+        "time": 130.76,
+        "text": "那些小子身价换做金链"
+    },
+    {
+        "time": 133.34,
+        "text": "大脑白痴，回路缺电，所以口腔异物镶嵌"
+    },
+    {
+        "time": 137.12,
+        "text": "行为举止怪异，毫无造诣"
+    },
+    {
+        "time": 139.63,
+        "text": "投入心血量产垃圾，医院自我高潮，颅腔出血"
+    },
+    {
+        "time": 143.72,
+        "text": "交界，留下交线"
+    },
+    {
+        "time": 146.22,
+        "text": "如果踩线需要停止心电"
+    },
+    {
+        "time": 148.72,
+        "text": "说声再见心愿不再出现"
+    },
+    {
+        "time": 151.57,
+        "text": "他说必须，抓住契机，瞄准这个圈子"
+    },
+    {
+        "time": 155.86,
+        "text": "太多地区垃圾寄居"
+    },
+    {
+        "time": 158.67,
+        "text": "不戴项链，不去模仿谁的早期"
+    },
+    {
+        "time": 161.34,
+        "text": "爷我天天剃须"
+    },
+    {
+        "time": 163.35,
+        "text": "想要购买主机，爷我自立根生利用暑期创造内需"
+    },
+    {
+        "time": 168.58,
+        "text": "换个赛道降低阶梯，日夜颠倒从不顺应作"
+    },
+    {
+        "time": 173.2,
+        "text": "事业交给自己，从不相信娇妻喘息"
+    },
+    {
+        "time": 176.71,
+        "text": "如有必要需要反击"
+    },
+    {
+        "time": 178.78,
+        "text": "抓住时机在这时期"
+    },
+    {
+        "time": 180.68,
+        "text": "大脑练就一身腹肌"
+    },
+    {
+        "time": 182.86,
+        "text": "无须思考寿命是否到期"
+    },
+    {
+        "time": 185.37,
+        "text": "穿梭黑夜，感到一股凉意"
+    },
+    {
+        "time": 187.41,
+        "text": "从不倒吸一股凉气"
+    },
+    {
+        "time": 189.51,
+        "text": "后续走在墓地，表情洋溢"
+    },
+    {
+        "time": 191.84,
+        "text": "拿出手机详细查看阳历"
+    },
+    {
+        "time": 194.1,
+        "text": "像是一场游戏，游历阴阳交界"
+    },
+    {
+        "time": 197.62,
+        "text": "到底谁会超线？"
+    },
+    {
+        "time": 199.51,
+        "text": "如果永别别说再见，拒绝道歉"
+    },
+    {
+        "time": 203.14,
+        "text": "要是存在天堂，确保你会活在地狱里面"
+    },
+    {
+        "time": 207.02,
+        "text": "所以最好不要（超线）越界"
+    },
+    {
+        "time": 209.77,
+        "text": "像是看完垃圾院线"
+    },
+    {
+        "time": 211.78,
+        "text": "告诉那些小子“总在抱怨？永远别说抱歉！”"
+    },
+    {
+        "time": 215.41,
+        "text": "过去逝去，没人还在悼念"
+    },
+    {
+        "time": 217.91,
+        "text": "剧情像是梦想搁浅，谁都不该道歉"
+    },
+    {
+        "time": 221.07,
+        "text": "人和理想之间绝非几张试卷"
+    },
+    {
+        "time": 223.77,
+        "text": "选择视而不见，至少还能适当看见"
+    },
+    {
+        "time": 227.22,
+        "text": "世界太多事情发生像是从来没有出现"
+    },
+    {
+        "time": 231.21,
+        "text": "()"
+    }
+]
+        const canvas = document.getElementById('visceral-stage');
+        const ctx = canvas.getContext('2d');
+        const entryScreen = document.getElementById('entry-screen');
+        const entryBtn = document.getElementById('entry-btn');
+        const activeLyric = document.getElementById('active-lyric');
+
+        let canvasWidth = canvas.width = window.innerWidth;
+        let canvasHeight = canvas.height = window.innerHeight;
+
+        let isPlaying = false;
+        let currentTime = 0;
+        let lastLyricIndex = -1;
+        let timer = null;
+        let audio = null;
+        let useSimulationTimer = false;
+
+        // 全局生理律动相位
+        let heartbeatPhase = 0;
+
+        // 微观生物系统
+        let redBloodCells = []; // 3D悬浮红细胞
+        let semenBlobs = [];    // 多尺度精液凝块
+        let sperms = [];        // 游动精子
+        let oozeDrips = [];     // 细胞裂解喷发颗粒
+
+        window.addEventListener('resize', () => {
+            canvasWidth = canvas.width = window.innerWidth;
+            canvasHeight = canvas.height = window.innerHeight;
+        });
+
+        // ============== 2. 真实双凹红细胞类 ==============
+        class RedBloodCell {
+            constructor(initInScreen = false) {
+                this.reset(initInScreen);
+            }
+
+            reset(initInScreen = false) {
+                this.depth = Math.random() * 0.7 + 0.3;
+                this.x = Math.random() * canvasWidth;
+                this.y = initInScreen ? Math.random() * canvasHeight : -60;
+                this.vx = (Math.random() - 0.5) * 0.8 * this.depth;
+                this.vy = (Math.random() * 0.7 + 0.4) * this.depth;
+                this.baseRadius = (Math.random() * 10 + 9) * this.depth;
+                this.radius = this.baseRadius;
+                this.angle = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.015;
+                this.flatness = Math.random() * 0.35 + 0.65;
+                this.opacity = 1.0;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.angle += this.rotationSpeed;
+                this.radius = this.baseRadius * (1 + Math.sin(heartbeatPhase * 4) * 0.04);
+
+                if (this.y > canvasHeight + 60) {
+                    this.reset(false);
+                }
+                if (this.x < -60 || this.x > canvasWidth + 60) {
+                    this.vx *= -1;
+                }
+
+                const dx = this.x - canvasWidth / 2;
+                const dy = this.y - canvasHeight / 2;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 280) {
+                    this.opacity = 0.25 + 0.75 * (dist / 280);
+                } else {
+                    this.opacity = 1.0;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.opacity * (this.depth * 0.9);
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.scale(1, this.flatness);
+
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                
+                const coreR = Math.floor(190 * this.depth);
+                const coreG = Math.floor(12 * this.depth);
+                const coreB = Math.floor(22 * this.depth);
+
+                const gradOuter = ctx.createRadialGradient(0, 0, this.radius * 0.4, 0, 0, this.radius);
+                gradOuter.addColorStop(0, `rgb(${Math.floor(coreR * 0.55)}, ${coreG}, ${coreB})`);
+                gradOuter.addColorStop(0.75, `rgb(${coreR}, ${coreG}, ${coreB})`);
+                gradOuter.addColorStop(1, `rgb(${Math.floor(coreR * 0.35)}, 0, 0)`);
+
+                ctx.fillStyle = gradOuter;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius * 0.45, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${Math.floor(coreR * 0.25)}, 0, 3, 0.95)`;
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // ============== 3. 多尺度不规则精液凝块 ==============
+        class SemenBlob {
+            constructor(initInScreen = false) {
+                this.reset(initInScreen);
+            }
+
+            reset(initInScreen = false) {
+                this.depth = Math.random() * 0.6 + 0.4;
+                this.x = Math.random() * canvasWidth;
+                this.y = initInScreen ? Math.random() * canvasHeight : -100;
+                this.vx = (Math.random() - 0.5) * 0.6 * this.depth;
+                this.vy = (Math.random() * 0.5 + 0.2) * this.depth;
+
+                const dice = Math.random();
+                if (dice < 0.5) {
+                    this.baseRadius = Math.random() * 8 + 6;
+                } else if (dice < 0.85) {
+                    this.baseRadius = Math.random() * 20 + 15;
+                } else {
+                    this.baseRadius = Math.random() * 30 + 40;
+                }
+
+                this.radius = this.baseRadius * this.depth;
+                this.pulsePhase = Math.random() * Math.PI * 2;
+                this.opacity = 1.0;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.y > canvasHeight + 100) {
+                    this.reset(false);
+                }
+                if (this.x < -100 || this.x > canvasWidth + 100) {
+                    this.vx *= -1;
+                }
+
+                const dx = this.x - canvasWidth / 2;
+                const dy = this.y - canvasHeight / 2;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 280) {
+                    this.opacity = 0.2 + 0.8 * (dist / 280);
+                } else {
+                    this.opacity = 1.0;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.opacity * (this.depth * 0.95);
+
+                const r = this.radius * (1 + Math.sin(heartbeatPhase * 3 + this.pulsePhase) * 0.06);
+
+                ctx.beginPath();
+                if (this.radius > 20) {
+                    for (let a = 0; a < Math.PI * 2; a += 0.15) {
+                        const deform = Math.sin(a * 4 + heartbeatPhase * 2 + this.pulsePhase) * (this.radius * 0.08)
+                                     + Math.cos(a * 7) * (this.radius * 0.03);
+                        const px = this.x + Math.cos(a) * (r + deform);
+                        const py = this.y + Math.sin(a) * (r + deform);
+                        if (a === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                } else {
+                    ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
+                }
+
+                const grad = ctx.createRadialGradient(
+                    this.x - r * 0.25, this.y - r * 0.25, r * 0.05,
+                    this.x, this.y, r
+                );
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.25, '#faf7ec');
+                grad.addColorStop(0.7, '#e4d6a1');
+                grad.addColorStop(1, 'rgba(228, 214, 161, 0)');
+
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                if (this.radius > 35) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+                    ctx.beginPath();
+                    ctx.arc(this.x + r * 0.25, this.y - r * 0.1, r * 0.12, 0, Math.PI * 2);
+                    ctx.arc(this.x - r * 0.2, this.y + r * 0.25, r * 0.08, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        function drawStickySemenBridges() {
+            for (let i = 0; i < semenBlobs.length; i++) {
+                let connections = 0;
+                for (let j = i + 1; j < semenBlobs.length; j++) {
+                    if (connections >= 2) break;
+
+                    const b1 = semenBlobs[i];
+                    const b2 = semenBlobs[j];
+                    if (Math.abs(b1.depth - b2.depth) > 0.2) continue;
+
+                    const dx = b2.x - b1.x;
+                    const dy = b2.y - b1.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const maxDist = 180 * b1.depth;
+
+                    if (dist < maxDist) {
+                        const midX = (b1.x + b2.x) / 2;
+                        const midY = (b1.y + b2.y) / 2;
+                        const factor = 1 - dist / maxDist;
+                        const alpha = factor * b1.opacity * b2.opacity * b1.depth * 0.9;
+                        const thickness = Math.min(b1.radius, b2.radius) * 0.45 * factor;
+
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(b1.x, b1.y);
+                        ctx.quadraticCurveTo(midX, midY, b2.x, b2.y);
+                        ctx.lineWidth = thickness;
+                        ctx.strokeStyle = `rgba(235, 224, 185, ${alpha})`;
+                        ctx.lineCap = 'round';
+                        ctx.stroke();
+
+                        ctx.beginPath();
+                        ctx.moveTo(b1.x, b1.y);
+                        ctx.quadraticCurveTo(midX, midY, b2.x, b2.y);
+                        ctx.lineWidth = thickness * 0.35;
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.8})`;
+                        ctx.stroke();
+
+                        ctx.restore();
+                        connections++;
+                    }
+                }
+            }
+        }
+
+        // ============== 4. 显微游动精子类 ==============
+        class SpermCell {
+            constructor() {
+                this.x = Math.random() * canvasWidth;
+                this.y = Math.random() * canvasHeight;
+                this.angle = Math.random() * Math.PI * 2;
+                this.speed = Math.random() * 1.6 + 1.2;
+                this.wiggleSpeed = Math.random() * 0.28 + 0.16;
+                this.wiggleTime = Math.random() * 100;
+                this.size = Math.random() * 3.5 + 2.5;
+            }
+
+            update() {
+                this.wiggleTime += this.wiggleSpeed;
+                const currentAngle = this.angle + Math.sin(this.wiggleTime) * 0.42;
+                this.x += Math.cos(currentAngle) * this.speed;
+                this.y += Math.sin(currentAngle) * this.speed;
+
+                if (this.x < -30) this.x = canvasWidth + 30;
+                if (this.x > canvasWidth + 30) this.x = -30;
+                if (this.y < -30) this.y = canvasHeight + 30;
+                if (this.y > canvasHeight + 30) this.y = -30;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = 0.45;
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                let tx = this.x;
+                let ty = this.y;
+                for (let i = 1; i <= 8; i++) {
+                    const tailAngle = this.angle + Math.PI + Math.sin(this.wiggleTime - i * 0.4) * 0.52;
+                    tx += Math.cos(tailAngle) * (this.size * 1.5);
+                    ty += Math.sin(tailAngle) * (this.size * 1.5);
+                    ctx.lineTo(tx, ty);
+                }
+                ctx.lineWidth = this.size * 0.45;
+                ctx.strokeStyle = 'rgba(255, 255, 240, 0.65)';
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        // ============== 5. 细胞裂解爆发物 ==============
+        class OozeDrip {
+            constructor(x, y, vx, vy, color, size) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy + 2.0;
+                this.size = size;
+                this.color = color;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.022 + 0.013;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.14;
+                this.life -= this.decay;
+            }
+
+            draw() {
+                if (this.life <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = this.life;
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(this.x - this.size * 0.22, this.y - this.size * 0.22, this.size * 0.25 * this.life, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // ============== 6. 歌词状态机与裂解触发 ==============
+        function updateLyrics() {
+            // 获取当前音频播放进度
+            if (audio && !useSimulationTimer) {
+                currentTime = audio.currentTime;
+            }
+
+            let activeIndex = -1;
+            for (let i = 0; i < lyricsJson.length; i++) {
+                if (currentTime >= lyricsJson[i].time) {
+                    activeIndex = i;
+                } else {
+                    break;
+                }
+            }
+
+            if (activeIndex !== lastLyricIndex) {
+                if (lastLyricIndex !== -1 && activeLyric.innerText) {
+                    triggerLysisExplosion();
+                }
+
+                if (activeIndex !== -1) {
+                    activeLyric.style.opacity = '0'; 
+                    setTimeout(() => {
+                        activeLyric.innerText = lyricsJson[activeIndex].text;
+                        activeLyric.style.opacity = '1'; 
+                    }, 40);
+                } else {
+                    activeLyric.style.opacity = '0';
+                }
+                lastLyricIndex = activeIndex;
+            }
+        }
+
+        function triggerLysisExplosion() {
+            const centerX = canvasWidth / 2;
+            const centerY = canvasHeight / 2;
+            
+            for (let i = 0; i < 95; i++) {
+                const spreadX = (Math.random() - 0.5) * 620;
+                const spreadY = (Math.random() - 0.5) * 100;
+                const isBlood = Math.random() > 0.45;
+                const color = isBlood ? '#be000e' : '#faf8e8';
+                const size = Math.random() * 10 + 4;
+
+                oozeDrips.push(new OozeDrip(
+                    centerX + spreadX,
+                    centerY + spreadY,
+                    (Math.random() - 0.5) * 5.5,
+                    (Math.random() - 0.5) * 2.8,
+                    color,
+                    size
+                ));
+            }
+        }
+
+        // ============== 7. 主渲染流程 ==============
+        function loop() {
+            ctx.fillStyle = 'rgba(10, 0, 2, 0.17)';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            heartbeatPhase += 0.045;
+
+            // 在高频渲染环中维持音频时间更新
+            updateLyrics();
+
+            sperms.forEach(sp => {
+                sp.update();
+                sp.draw();
+            });
+
+            drawStickySemenBridges();
+
+            semenBlobs.forEach(sb => {
+                sb.update();
+                sb.draw();
+            });
+
+            redBloodCells.forEach(rbc => {
+                rbc.update();
+                rbc.draw();
+            });
+
+            oozeDrips.forEach((d, index) => {
+                d.update();
+                d.draw();
+                if (d.life <= 0) oozeDrips.splice(index, 1);
+            });
+
+            const vignette = ctx.createRadialGradient(
+                canvasWidth / 2, canvasHeight / 2, 60, 
+                canvasWidth / 2, canvasHeight / 2, canvasWidth * 0.45
+            );
+            vignette.addColorStop(0, 'rgba(8, 0, 1, 0.88)');
+            vignette.addColorStop(1, 'rgba(8, 0, 1, 0.0)');  
+            
+            ctx.fillStyle = vignette;
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            requestAnimationFrame(loop);
+        }
+
+        // ============== 8. 系统生理维持 ==============
+        function startSystem() {
+            isPlaying = true;
+            
+            redBloodCells = [];
+            semenBlobs = [];
+            sperms = [];
+
+            for (let i = 0; i < 48; i++) redBloodCells.push(new RedBloodCell(true));
+            for (let i = 0; i < 24; i++) semenBlobs.push(new SemenBlob(true));
+            for (let i = 0; i < 15; i++) sperms.push(new SpermCell());
+
+            // 尝试播放音频，如果未提供有效链接或报错则自动采用高精度模拟器
+            if (AUDIO_URL && AUDIO_URL !== "YOUR_AUDIO_URL_HERE") {
+                audio = new Audio(AUDIO_URL);
+                audio.play().then(() => {
+                    useSimulationTimer = false;
+                }).catch(err => {
+                    console.warn("音频文件加载或播放失败，已自动切换到模拟时间线。错误信息:", err);
+                    useSimulationTimer = true;
+                    timer = setInterval(() => {
+                        currentTime += 0.05;
+                    }, 50);
+                });
+            } else {
+                console.log("未填写 AUDIO_URL 或为默认占位，已自动启动模拟时间线运行模式。");
+                useSimulationTimer = true;
+                timer = setInterval(() => {
+                    currentTime += 0.05;
+                }, 50);
+            }
+
+            // 入口阀门退场
+            entryScreen.style.opacity = 0;
+            setTimeout(() => {
+                entryScreen.style.display = 'none';
+            }, 1500);
+
+            loop();
+        }
+
+        entryBtn.addEventListener('click', () => {
+            if (!isPlaying) startSystem();
+        });
+    </script>
+</body>
+</html>
